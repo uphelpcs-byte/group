@@ -8,7 +8,7 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Clients from "./pages/Clients";
 import Members from "./pages/Members";
-import Schedule from "./pages/Schedule";
+import Leave from "./pages/Leave";
 import Attendance from "./pages/Attendance";
 import Payroll from "./pages/Payroll";
 import Payslips from "./pages/Payslips";
@@ -50,7 +50,8 @@ const AppRoutes = () => (
     <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
     <Route path="/clients" element={<ProtectedRoute><Clients /></ProtectedRoute>} />
     <Route path="/members" element={<ProtectedRoute><Members /></ProtectedRoute>} />
-    <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
+    <Route path="/leave" element={<ProtectedRoute><Leave /></ProtectedRoute>} />
+    <Route path="/schedule" element={<Navigate to="/leave" replace />} />
     <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
     <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
     <Route path="/payslips" element={<ProtectedRoute><Payslips /></ProtectedRoute>} />

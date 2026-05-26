@@ -9,7 +9,7 @@ import {
   Settings,
   LogOut,
   AlertCircle,
-  CalendarDays,
+  CalendarOff,
   Clock,
   LogIn,
   LogOut as LogOutIcon,
@@ -29,13 +29,14 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { NotificationBell } from './NotificationBell';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 
 const navigation = [
   { name: '대시보드', href: '/dashboard', icon: LayoutDashboard },
   { name: '구성원 관리', href: '/members', icon: Users },
-  { name: '스케줄 관리', href: '/schedule', icon: CalendarDays },
+  { name: '휴무 신청', href: '/leave', icon: CalendarOff },
   { name: '근태관리', href: '/attendance', icon: Clock, adminOnly: true },
   { name: '급여 관리', href: '/payroll', icon: DollarSign, adminOnly: true },
   { name: '급여 명세서', href: '/payslips', icon: Receipt },
@@ -203,6 +204,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
           <h1 className="text-lg font-bold leading-tight">업도움</h1>
           <p className="text-xs text-sidebar-foreground/60">그룹웨어</p>
         </div>
+        <NotificationBell className="ml-auto text-sidebar-foreground/70 hover:bg-sidebar-accent hover:text-sidebar-foreground" />
       </div>
 
       {/* Navigation */}

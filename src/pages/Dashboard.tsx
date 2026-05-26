@@ -384,7 +384,7 @@ export default function Dashboard() {
   const handleItemClick = (type: 'schedule' | 'task' | 'issue' | 'consultation' | 'pilot', id?: string) => {
     switch (type) {
       case 'schedule':
-        navigate('/schedule');
+        navigate('/leave');
         break;
       case 'task':
         navigate('/tasks');
