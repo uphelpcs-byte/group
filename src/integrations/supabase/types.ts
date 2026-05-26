@@ -224,6 +224,71 @@ export type Database = {
           },
         ]
       }
+      client_invoices: {
+        Row: {
+          base_amount: number
+          billed_amount: number
+          billing_month: string
+          client_id: string
+          created_at: string
+          created_by: string | null
+          id: string
+          invoice_issued: boolean
+          invoice_issued_date: string | null
+          is_paid: boolean
+          is_prorated: boolean
+          notes: string | null
+          paid_date: string | null
+          prorate_business_days: number | null
+          total_business_days: number | null
+          updated_at: string
+        }
+        Insert: {
+          base_amount?: number
+          billed_amount?: number
+          billing_month: string
+          client_id: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_issued?: boolean
+          invoice_issued_date?: string | null
+          is_paid?: boolean
+          is_prorated?: boolean
+          notes?: string | null
+          paid_date?: string | null
+          prorate_business_days?: number | null
+          total_business_days?: number | null
+          updated_at?: string
+        }
+        Update: {
+          base_amount?: number
+          billed_amount?: number
+          billing_month?: string
+          client_id?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          invoice_issued?: boolean
+          invoice_issued_date?: string | null
+          is_paid?: boolean
+          is_prorated?: boolean
+          notes?: string | null
+          paid_date?: string | null
+          prorate_business_days?: number | null
+          total_business_days?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "client_invoices_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       clients: {
         Row: {
           address: string | null

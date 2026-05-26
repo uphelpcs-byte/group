@@ -11,6 +11,7 @@ import Members from "./pages/Members";
 import Schedule from "./pages/Schedule";
 import Attendance from "./pages/Attendance";
 import Payroll from "./pages/Payroll";
+import Revenue from "./pages/Revenue";
 import CS from "./pages/CS";
 import Issues from "./pages/Issues";
 import Tasks from "./pages/Tasks";
@@ -51,6 +52,7 @@ const AppRoutes = () => (
     <Route path="/schedule" element={<ProtectedRoute><Schedule /></ProtectedRoute>} />
     <Route path="/attendance" element={<ProtectedRoute><Attendance /></ProtectedRoute>} />
     <Route path="/payroll" element={<ProtectedRoute><Payroll /></ProtectedRoute>} />
+    <Route path="/revenue" element={<ProtectedRoute><Revenue /></ProtectedRoute>} />
     <Route path="/cs" element={<ProtectedRoute><CS /></ProtectedRoute>} />
     <Route path="/pilots" element={<ProtectedRoute><Pilots /></ProtectedRoute>} />
     <Route path="/issues" element={<ProtectedRoute><Issues /></ProtectedRoute>} />
