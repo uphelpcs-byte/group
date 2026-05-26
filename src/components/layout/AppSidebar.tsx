@@ -20,7 +20,8 @@ import {
   UtensilsCrossed,
   RotateCcw,
   TrendingUp,
-  Receipt
+  Receipt,
+  CalendarClock
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import logo from '@/assets/logo.png';
@@ -41,6 +42,7 @@ const navigation = [
   { name: '급여 관리', href: '/payroll', icon: DollarSign, adminOnly: true },
   { name: '급여 명세서', href: '/payslips', icon: Receipt },
   { name: '매출 관리', href: '/revenue', icon: TrendingUp, adminOnly: true },
+  { name: '미팅 일정 관리', href: '/meetings-schedule', icon: CalendarClock, adminPlusOnly: true },
   { name: '고객사 관리', href: '/clients', icon: Building2 },
   { name: '파일럿 관리', href: '/pilots', icon: Rocket },
   { name: 'CS 운영', href: '/cs', icon: MessageSquare },
@@ -54,7 +56,7 @@ const navigation = [
 
 export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const location = useLocation();
-  const { user, role, signOut, isManagerPlus } = useAuth();
+  const { user, role, signOut, isManagerPlus, isAdmin } = useAuth();
   const [currentAttendance, setCurrentAttendance] = useState<{ id: string; clock_in: string; meal_out: string | null; meal_in: string | null } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -191,6 +193,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
 
   // 권한에 따른 네비게이션 필터링
   const filteredNavigation = navigation.filter(item => {
+    if (item.adminPlusOnly && !isAdmin) return false;
     if (item.adminOnly && !isManagerPlus) return false;
     return true;
   });
@@ -208,7 +211,7 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 space-y-1 px-3 py-4">
+      <nav className="flex-1 min-h-0 overflow-y-auto space-y-1 px-3 py-4">
         {filteredNavigation.map((item) => {
           const isActive = location.pathname === item.href || location.pathname.startsWith(item.href + '/');
           return (

@@ -19,6 +19,7 @@ import Tasks from "./pages/Tasks";
 import Tools from "./pages/Tools";
 import Pilots from "./pages/Pilots";
 import Meetings from "./pages/Meetings";
+import MeetingsSchedule from "./pages/MeetingsSchedule";
 import Reports from "./pages/Reports";
 import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
@@ -61,6 +62,7 @@ const AppRoutes = () => (
     <Route path="/issues" element={<ProtectedRoute><Issues /></ProtectedRoute>} />
     <Route path="/tasks" element={<ProtectedRoute><Tasks /></ProtectedRoute>} />
     <Route path="/meetings" element={<ProtectedRoute><Meetings /></ProtectedRoute>} />
+    <Route path="/meetings-schedule" element={<ProtectedRoute><MeetingsSchedule /></ProtectedRoute>} />
     <Route path="/tools" element={<ProtectedRoute><Tools /></ProtectedRoute>} />
     <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 import { formatDistanceToNow } from 'date-fns';
@@ -21,9 +22,17 @@ interface Notification {
 }
 
 export function NotificationBell({ className }: { className?: string }) {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  // 대표 접속 시 미팅 하루전/당일 알림 생성 (플래그로 중복 방지)
+  useEffect(() => {
+    if (!isAdmin) return;
+    supabase.rpc('process_meeting_reminders').then(({ error }) => {
+      if (!error) queryClient.invalidateQueries({ queryKey: ['notifications'] });
+    });
+  }, [isAdmin, queryClient]);
 
   const { data: notifications = [] } = useQuery({
     queryKey: ['notifications', user?.id],

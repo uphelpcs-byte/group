@@ -833,6 +833,48 @@ export type Database = {
         }
         Relationships: []
       }
+      meeting_schedules: {
+        Row: {
+          agenda: string | null
+          company_name: string
+          created_at: string
+          created_by: string | null
+          id: string
+          location: string | null
+          meeting_date: string
+          meeting_time: string
+          reminded_d1: boolean
+          reminded_dday: boolean
+          updated_at: string
+        }
+        Insert: {
+          agenda?: string | null
+          company_name: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          meeting_date: string
+          meeting_time: string
+          reminded_d1?: boolean
+          reminded_dday?: boolean
+          updated_at?: string
+        }
+        Update: {
+          agenda?: string | null
+          company_name?: string
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          location?: string | null
+          meeting_date?: string
+          meeting_time?: string
+          reminded_d1?: boolean
+          reminded_dday?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           body: string | null
@@ -1314,6 +1356,7 @@ export type Database = {
         Returns: boolean
       }
       is_manager_plus: { Args: never; Returns: boolean }
+      process_meeting_reminders: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "admin" | "director" | "manager" | "agent" | "contractor"
