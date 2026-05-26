@@ -15,7 +15,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
-import { DollarSign, Clock, Users, Calculator, Settings, Edit, Download, FileText, MessageSquare, Check, X } from 'lucide-react';
+import { DollarSign, Clock, Users, Calculator, Settings, Edit, Download, FileText, MessageSquare, Check, X, Send, BadgeCheck } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
 import * as XLSX from 'xlsx';
 
 interface AttendanceRecord {
@@ -107,6 +108,25 @@ export default function Payroll() {
     },
     enabled: isAdmin,
   });
+
+  const { data: issuedPayslips = [] } = useQuery({
+    queryKey: ['payslips-issued', selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payslips')
+        .select('user_id, issued_at')
+        .eq('pay_month', selectedMonth);
+      if (error) throw error;
+      return data as { user_id: string; issued_at: string }[];
+    },
+    enabled: isAdmin,
+  });
+
+  const issuedMap = useMemo(() => {
+    const m = new Map<string, string>();
+    issuedPayslips.forEach(p => m.set(p.user_id, p.issued_at));
+    return m;
+  }, [issuedPayslips]);
 
   const completedRecords = useMemo(() => attendanceRecords.filter(r => r.clock_out), [attendanceRecords]);
 
@@ -273,6 +293,54 @@ export default function Payroll() {
     },
   });
 
+  const buildPayslipRow = (member: MemberPayroll) => ({
+    user_id: member.userId,
+    pay_month: selectedMonth,
+    hourly_rate: member.hourlyRate,
+    total_hours: Math.round(member.totalHours * 100) / 100,
+    base_pay: Math.round(member.basePay),
+    weekly_holiday_pay: Math.round(member.weeklyHolidayPay),
+    total_pay: Math.round(member.totalPay),
+    weekly_breakdown: member.weeklyHours,
+    memo: member.memo,
+    issued_by: user?.id ?? null,
+    issued_at: new Date().toISOString(),
+  });
+
+  const issuePayslipMutation = useMutation({
+    mutationFn: async (member: MemberPayroll) => {
+      const { error } = await supabase
+        .from('payslips')
+        .upsert(buildPayslipRow(member), { onConflict: 'user_id,pay_month' });
+      if (error) throw error;
+    },
+    onSuccess: (_, member) => {
+      queryClient.invalidateQueries({ queryKey: ['payslips-issued'] });
+      toast.success(`${member.name}님의 급여명세서가 발급되었습니다`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || '명세서 발급 실패');
+    },
+  });
+
+  const issueAllMutation = useMutation({
+    mutationFn: async () => {
+      if (memberPayrolls.length === 0) return;
+      const rows = memberPayrolls.map(buildPayslipRow);
+      const { error } = await supabase
+        .from('payslips')
+        .upsert(rows, { onConflict: 'user_id,pay_month' });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payslips-issued'] });
+      toast.success(`${memberPayrolls.length}명의 급여명세서가 발급되었습니다`);
+    },
+    onError: (error: any) => {
+      toast.error(error.message || '명세서 발급 실패');
+    },
+  });
+
   const monthOptions = useMemo(() => {
     const options = [];
     const now = new Date();
@@ -412,10 +480,16 @@ export default function Payroll() {
                 </SelectContent>
               </Select>
 
-              <Button onClick={downloadAllExcel} disabled={memberPayrolls.length === 0}>
-                <Download className="mr-2 h-4 w-4" />
-                전체 리포트 엑셀 다운로드
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button variant="outline" onClick={() => issueAllMutation.mutate()} disabled={memberPayrolls.length === 0 || issueAllMutation.isPending}>
+                  <Send className="mr-2 h-4 w-4" />
+                  이번 달 전체 발급
+                </Button>
+                <Button onClick={downloadAllExcel} disabled={memberPayrolls.length === 0}>
+                  <Download className="mr-2 h-4 w-4" />
+                  전체 리포트 엑셀 다운로드
+                </Button>
+              </div>
             </div>
 
             {/* 통계 카드 */}
@@ -541,7 +615,23 @@ export default function Payroll() {
                             {formatCurrency(member.totalPay)}
                           </TableCell>
                           <TableCell>
-                            <div className="flex gap-1">
+                            <div className="flex items-center gap-1">
+                              {issuedMap.has(member.userId) && (
+                                <Badge variant="secondary" className="gap-1 text-green-600" title={`발급일: ${format(new Date(issuedMap.get(member.userId)!), 'yyyy-MM-dd HH:mm')}`}>
+                                  <BadgeCheck className="h-3 w-3" />
+                                  발급됨
+                                </Badge>
+                              )}
+                              <Button
+                                variant={issuedMap.has(member.userId) ? 'ghost' : 'default'}
+                                size="sm"
+                                onClick={() => issuePayslipMutation.mutate(member)}
+                                disabled={issuePayslipMutation.isPending}
+                                title={issuedMap.has(member.userId) ? '재발급' : '급여명세서 발급'}
+                              >
+                                <Send className="h-4 w-4 sm:mr-1" />
+                                <span className="hidden sm:inline">{issuedMap.has(member.userId) ? '재발급' : '발급'}</span>
+                              </Button>
                               <Button variant="ghost" size="sm" onClick={() => downloadIndividualExcel(member)} title="급여명세서 다운로드">
                                 <FileText className="h-4 w-4" />
                               </Button>

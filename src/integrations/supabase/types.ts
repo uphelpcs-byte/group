@@ -734,6 +734,57 @@ export type Database = {
         }
         Relationships: []
       }
+      payslips: {
+        Row: {
+          base_pay: number
+          created_at: string
+          hourly_rate: number
+          id: string
+          issued_at: string
+          issued_by: string | null
+          memo: string | null
+          pay_month: string
+          total_hours: number
+          total_pay: number
+          updated_at: string
+          user_id: string
+          weekly_breakdown: Json | null
+          weekly_holiday_pay: number
+        }
+        Insert: {
+          base_pay?: number
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          memo?: string | null
+          pay_month: string
+          total_hours?: number
+          total_pay?: number
+          updated_at?: string
+          user_id: string
+          weekly_breakdown?: Json | null
+          weekly_holiday_pay?: number
+        }
+        Update: {
+          base_pay?: number
+          created_at?: string
+          hourly_rate?: number
+          id?: string
+          issued_at?: string
+          issued_by?: string | null
+          memo?: string | null
+          pay_month?: string
+          total_hours?: number
+          total_pay?: number
+          updated_at?: string
+          user_id?: string
+          weekly_breakdown?: Json | null
+          weekly_holiday_pay?: number
+        }
+        Relationships: []
+      }
       pilot_checkpoints: {
         Row: {
           checkpoint_order: number

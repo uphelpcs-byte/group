@@ -19,7 +19,8 @@ import {
   Video,
   UtensilsCrossed,
   RotateCcw,
-  TrendingUp
+  TrendingUp,
+  Receipt
 } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import logo from '@/assets/logo.png';
@@ -37,6 +38,7 @@ const navigation = [
   { name: '스케줄 관리', href: '/schedule', icon: CalendarDays },
   { name: '근태관리', href: '/attendance', icon: Clock, adminOnly: true },
   { name: '급여 관리', href: '/payroll', icon: DollarSign, adminOnly: true },
+  { name: '급여 명세서', href: '/payslips', icon: Receipt },
   { name: '매출 관리', href: '/revenue', icon: TrendingUp, adminOnly: true },
   { name: '고객사 관리', href: '/clients', icon: Building2 },
   { name: '파일럿 관리', href: '/pilots', icon: Rocket },
