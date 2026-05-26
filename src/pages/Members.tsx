@@ -54,6 +54,12 @@ interface Member {
   department: string | null;
   position: string | null;
   role?: string;
+  clientIds: string[];
+}
+
+interface ClientOption {
+  id: string;
+  name: string;
 }
 
 const ROLES = ['admin', 'director', 'manager', 'agent', 'contractor'] as const;
@@ -61,6 +67,7 @@ const ROLES = ['admin', 'director', 'manager', 'agent', 'contractor'] as const;
 export default function Members() {
   const { isManagerPlus } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
+  const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [departmentFilter, setDepartmentFilter] = useState<string>('all');
@@ -75,6 +82,7 @@ export default function Members() {
     position: '',
     role: '',
     work_status: '',
+    clientIds: [] as string[],
   });
 
   useEffect(() => {
@@ -83,36 +91,39 @@ export default function Members() {
 
   const fetchMembers = async () => {
     try {
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false });
+      const [profilesRes, rolesRes, assignmentsRes, clientsRes] = await Promise.all([
+        supabase.from('profiles').select('*').order('created_at', { ascending: false }),
+        supabase.from('user_roles').select('user_id, role'),
+        supabase.from('client_assignments').select('user_id, client_id'),
+        supabase.from('clients').select('id, name').order('name'),
+      ]);
 
-      if (error) throw error;
+      if (profilesRes.error) throw profilesRes.error;
 
-      // Fetch roles for each profile
-      const membersWithRoles = await Promise.all(
-        (profiles || []).map(async (profile) => {
-          const { data: roleData } = await supabase
-            .from('user_roles')
-            .select('role')
-            .eq('user_id', profile.id)
-            .single();
-          
-          return {
-            ...profile,
-            role: roleData?.role || 'agent',
-          };
-        })
+      const roleMap = new Map((rolesRes.data || []).map((r) => [r.user_id, r.role]));
+      const assignMap = new Map<string, string[]>();
+      (assignmentsRes.data || []).forEach((a) => {
+        const arr = assignMap.get(a.user_id) || [];
+        arr.push(a.client_id);
+        assignMap.set(a.user_id, arr);
+      });
+
+      setClients((clientsRes.data || []) as ClientOption[]);
+      setMembers(
+        (profilesRes.data || []).map((profile) => ({
+          ...profile,
+          role: roleMap.get(profile.id) || 'agent',
+          clientIds: assignMap.get(profile.id) || [],
+        }))
       );
-
-      setMembers(membersWithRoles);
     } catch (error) {
       console.error('Error fetching members:', error);
     } finally {
       setLoading(false);
     }
   };
+
+  const clientName = (id: string) => clients.find((c) => c.id === id)?.name || '알 수 없음';
 
   const filteredMembers = members.filter(member => {
     const matchesSearch = 
@@ -193,6 +204,7 @@ export default function Members() {
       position: member.position || '',
       role: member.role || 'agent',
       work_status: member.work_status,
+      clientIds: member.clientIds || [],
     });
     setEditDialogOpen(true);
   };
@@ -220,6 +232,27 @@ export default function Members() {
         .eq('user_id', selectedMember.id);
 
       if (roleError) throw roleError;
+
+      // 담당 고객사 동기화 (추가/삭제분만 반영)
+      const original = selectedMember.clientIds || [];
+      const next = editForm.clientIds;
+      const toAdd = next.filter((id) => !original.includes(id));
+      const toRemove = original.filter((id) => !next.includes(id));
+
+      if (toAdd.length > 0) {
+        const { error } = await supabase
+          .from('client_assignments')
+          .insert(toAdd.map((client_id) => ({ user_id: selectedMember.id, client_id })));
+        if (error) throw error;
+      }
+      if (toRemove.length > 0) {
+        const { error } = await supabase
+          .from('client_assignments')
+          .delete()
+          .eq('user_id', selectedMember.id)
+          .in('client_id', toRemove);
+        if (error) throw error;
+      }
 
       toast.success('구성원 정보가 수정되었습니다');
       setEditDialogOpen(false);
@@ -329,6 +362,7 @@ export default function Members() {
                   <TableHead>부서</TableHead>
                   <TableHead>직급</TableHead>
                   <TableHead>역할</TableHead>
+                  <TableHead>담당 고객사</TableHead>
                   <TableHead>연락처</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>가입일</TableHead>
@@ -338,7 +372,7 @@ export default function Members() {
               <TableBody>
                 {filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={8} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
                       {hasActiveFilters ? '검색 결과가 없습니다' : '등록된 구성원이 없습니다'}
                     </TableCell>
                   </TableRow>
@@ -371,6 +405,19 @@ export default function Members() {
                         )}
                       </TableCell>
                       <TableCell>{getRoleBadge(member.role || 'agent')}</TableCell>
+                      <TableCell>
+                        {member.clientIds.length > 0 ? (
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {member.clientIds.map((id) => (
+                              <Badge key={id} variant="secondary" className="font-normal">
+                                {clientName(id)}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground text-sm">-</span>
+                        )}
+                      </TableCell>
                       <TableCell>
                         <div className="flex flex-col gap-1">
                           <span className="flex items-center gap-1 text-sm">
@@ -466,6 +513,18 @@ export default function Members() {
                     <Label className="text-muted-foreground text-xs">가입일</Label>
                     <p className="font-medium">{format(new Date(selectedMember.created_at), 'yyyy.MM.dd')}</p>
                   </div>
+                  <div className="col-span-2">
+                    <Label className="text-muted-foreground text-xs">담당 고객사</Label>
+                    {selectedMember.clientIds.length > 0 ? (
+                      <div className="flex flex-wrap gap-1 pt-1">
+                        {selectedMember.clientIds.map((id) => (
+                          <Badge key={id} variant="secondary" className="font-normal">{clientName(id)}</Badge>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="font-medium">-</p>
+                    )}
+                  </div>
                 </div>
               </div>
             )}
@@ -536,6 +595,51 @@ export default function Members() {
                     <SelectItem value="resigned">퇴사</SelectItem>
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>담당 고객사</Label>
+                <Select
+                  value=""
+                  onValueChange={(id) =>
+                    setEditForm((f) =>
+                      f.clientIds.includes(id) ? f : { ...f, clientIds: [...f.clientIds, id] }
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="고객사 추가..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.filter((c) => !editForm.clientIds.includes(c.id)).length === 0 ? (
+                      <div className="px-2 py-1.5 text-sm text-muted-foreground">추가할 고객사가 없습니다</div>
+                    ) : (
+                      clients
+                        .filter((c) => !editForm.clientIds.includes(c.id))
+                        .map((c) => (
+                          <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                        ))
+                    )}
+                  </SelectContent>
+                </Select>
+                {editForm.clientIds.length > 0 && (
+                  <div className="flex flex-wrap gap-1 pt-1">
+                    {editForm.clientIds.map((id) => (
+                      <Badge key={id} variant="secondary" className="gap-1 font-normal">
+                        {clientName(id)}
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setEditForm((f) => ({ ...f, clientIds: f.clientIds.filter((x) => x !== id) }))
+                          }
+                          className="ml-0.5 rounded-full hover:bg-muted-foreground/20"
+                          aria-label="제거"
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <DialogFooter>
