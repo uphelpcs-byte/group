@@ -49,7 +49,7 @@ const navigation = [
   { name: '설정', href: '/settings', icon: Settings },
 ];
 
-export function AppSidebar() {
+export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const location = useLocation();
   const { user, role, signOut, isManagerPlus } = useAuth();
   const [currentAttendance, setCurrentAttendance] = useState<{ id: string; clock_in: string; meal_out: string | null; meal_in: string | null } | null>(null);
@@ -211,6 +211,7 @@ export function AppSidebar() {
             <NavLink
               key={item.name}
               to={item.href}
+              onClick={onNavigate}
               className={cn(
                 'flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors',
                 isActive

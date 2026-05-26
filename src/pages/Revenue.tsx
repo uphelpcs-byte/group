@@ -368,7 +368,7 @@ export default function Revenue() {
         </div>
 
         <Tabs defaultValue="billing" className="space-y-4">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="billing">월별 청구/수금</TabsTrigger>
             <TabsTrigger value="unpaid">
               미수금 현황

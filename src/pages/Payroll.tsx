@@ -390,7 +390,7 @@ export default function Payroll() {
         </div>
 
         <Tabs defaultValue="report" className="space-y-4">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="report">월별 급여 리포트</TabsTrigger>
             <TabsTrigger value="detail">근태 상세</TabsTrigger>
             <TabsTrigger value="settings">시급 설정</TabsTrigger>

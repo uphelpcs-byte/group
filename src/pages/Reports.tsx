@@ -62,7 +62,7 @@ export default function Reports() {
         </div>
 
         <Tabs defaultValue="dashboard" className="w-full">
-          <TabsList>
+          <TabsList className="h-auto flex-wrap">
             <TabsTrigger value="dashboard">통계 대시보드</TabsTrigger>
             <TabsTrigger value="weekly">주간 CS 리포트</TabsTrigger>
             <TabsTrigger value="invoice">인보이스 발송</TabsTrigger>
