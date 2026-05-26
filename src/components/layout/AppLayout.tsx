@@ -1,6 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { Menu } from 'lucide-react';
 import { AppSidebar } from './AppSidebar';
+import { NotificationBell } from './NotificationBell';
 import { Sheet, SheetContent, SheetTitle } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import logo from '@/assets/logo.png';
@@ -41,6 +42,7 @@ export function AppLayout({ children }: AppLayoutProps) {
           </Button>
           <img src={logo} alt="업도움" className="h-8 w-8 object-contain" />
           <span className="text-base font-bold">업도움</span>
+          <NotificationBell className="ml-auto text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-foreground" />
         </header>
 
         <main className="flex-1 overflow-auto bg-background">
