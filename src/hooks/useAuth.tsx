@@ -2,7 +2,7 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 
-type AppRole = 'admin' | 'manager' | 'agent' | 'contractor';
+type AppRole = 'admin' | 'director' | 'manager' | 'agent' | 'contractor';
 
 interface AuthContextType {
   user: User | null;
@@ -13,6 +13,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, department?: string, position?: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isManagerPlus: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -93,18 +94,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
   };
 
-  const isManagerPlus = role === 'admin' || role === 'manager';
+  // 이사(director)는 대표(admin)와 동일 권한
+  const isAdmin = role === 'admin' || role === 'director';
+  const isManagerPlus = isAdmin || role === 'manager';
 
   return (
-    <AuthContext.Provider value={{ 
-      user, 
-      session, 
-      role, 
-      loading, 
-      signIn, 
-      signUp, 
+    <AuthContext.Provider value={{
+      user,
+      session,
+      role,
+      loading,
+      signIn,
+      signUp,
       signOut,
-      isManagerPlus 
+      isManagerPlus,
+      isAdmin
     }}>
       {children}
     </AuthContext.Provider>

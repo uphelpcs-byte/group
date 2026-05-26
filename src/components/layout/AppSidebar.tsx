@@ -173,6 +173,7 @@ export function AppSidebar() {
   const getRoleLabel = (role: string | null) => {
     switch (role) {
       case 'admin': return '대표';
+      case 'director': return '이사';
       case 'manager': return '운영관리자';
       case 'agent': return 'CS상담원';
       case 'contractor': return '외주인력';

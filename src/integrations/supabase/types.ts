@@ -1184,7 +1184,7 @@ export type Database = {
       is_manager_plus: { Args: never; Returns: boolean }
     }
     Enums: {
-      app_role: "admin" | "manager" | "agent" | "contractor"
+      app_role: "admin" | "director" | "manager" | "agent" | "contractor"
       channel_type: "channel_talk" | "kakao" | "phone" | "email" | "other"
       consultation_status: "pending" | "in_progress" | "completed" | "escalated"
       contract_status: "pilot" | "active" | "terminated"
@@ -1319,7 +1319,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "manager", "agent", "contractor"],
+      app_role: ["admin", "director", "manager", "agent", "contractor"],
       channel_type: ["channel_talk", "kakao", "phone", "email", "other"],
       consultation_status: ["pending", "in_progress", "completed", "escalated"],
       contract_status: ["pilot", "active", "terminated"],

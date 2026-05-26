@@ -53,7 +53,7 @@ interface MemberPayroll {
 }
 
 export default function Payroll() {
-  const { user, role } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [isSettingDialogOpen, setIsSettingDialogOpen] = useState(false);
@@ -62,7 +62,6 @@ export default function Payroll() {
   const [editingMemo, setEditingMemo] = useState<string | null>(null);
   const [memoInput, setMemoInput] = useState('');
   const [detailMember, setDetailMember] = useState<string>('all');
-  const isAdmin = role === 'admin';
 
   const monthStart = startOfMonth(new Date(selectedMonth + '-01'));
   const monthEnd = endOfMonth(monthStart);

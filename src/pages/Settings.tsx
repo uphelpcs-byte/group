@@ -102,6 +102,7 @@ export default function Settings() {
   const getRoleLabel = (role: string | null) => {
     switch (role) {
       case 'admin': return '대표';
+      case 'director': return '이사';
       case 'manager': return '운영관리자';
       case 'agent': return 'CS상담원';
       case 'contractor': return '외주인력';
@@ -132,7 +133,7 @@ export default function Settings() {
               <Shield className="h-4 w-4" />
               보안
             </TabsTrigger>
-            {(role === 'admin' || role === 'manager') && (
+            {(role === 'admin' || role === 'director' || role === 'manager') && (
               <TabsTrigger value="organization" className="gap-2">
                 <Building className="h-4 w-4" />
                 조직

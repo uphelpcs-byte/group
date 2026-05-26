@@ -54,7 +54,7 @@ export default function Issues() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [issueToDelete, setIssueToDelete] = useState<Issue | null>(null);
 
-  const isManagerPlus = role === 'admin' || role === 'manager';
+  const isManagerPlus = role === 'admin' || role === 'director' || role === 'manager';
 
   const { data: issues, isLoading } = useQuery({
     queryKey: ['issues', statusFilter, priorityFilter],

@@ -75,9 +75,8 @@ interface AttendanceRecord {
 const fmtKRW = (n: number) => `${Math.round(n).toLocaleString('ko-KR')}원`;
 
 export default function Revenue() {
-  const { user, role } = useAuth();
+  const { user, isAdmin } = useAuth();
   const queryClient = useQueryClient();
-  const isAdmin = role === 'admin';
   const [selectedMonth, setSelectedMonth] = useState(format(new Date(), 'yyyy-MM'));
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedRow, setSelectedRow] = useState<BillingRow | null>(null);

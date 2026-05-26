@@ -56,7 +56,7 @@ interface Member {
   role?: string;
 }
 
-const ROLES = ['admin', 'manager', 'agent', 'contractor'] as const;
+const ROLES = ['admin', 'director', 'manager', 'agent', 'contractor'] as const;
 
 export default function Members() {
   const { isManagerPlus } = useAuth();
@@ -147,6 +147,7 @@ export default function Members() {
   const getRoleBadge = (role: string) => {
     const roleConfig: Record<string, { label: string; className: string }> = {
       admin: { label: '대표', className: 'bg-primary text-primary-foreground' },
+      director: { label: '이사', className: 'bg-primary text-primary-foreground' },
       manager: { label: '운영관리자', className: 'bg-blue-500 text-white' },
       agent: { label: 'CS상담원', className: 'bg-green-500 text-white' },
       contractor: { label: '외주인력', className: 'bg-orange-500 text-white' },
@@ -162,6 +163,7 @@ export default function Members() {
   const getRoleLabel = (role: string) => {
     const labels: Record<string, string> = {
       admin: '대표',
+      director: '이사',
       manager: '운영관리자',
       agent: 'CS상담원',
       contractor: '외주인력',
@@ -214,7 +216,7 @@ export default function Members() {
       // 역할 업데이트
       const { error: roleError } = await supabase
         .from('user_roles')
-        .update({ role: editForm.role as 'admin' | 'manager' | 'agent' | 'contractor' })
+        .update({ role: editForm.role as 'admin' | 'director' | 'manager' | 'agent' | 'contractor' })
         .eq('user_id', selectedMember.id);
 
       if (roleError) throw roleError;
