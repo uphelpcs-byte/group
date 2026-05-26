@@ -1,0 +1,144 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* CS Operation Hub - Data-Centric Design System */
+
+@layer base {
+  :root {
+    --background: 195 20% 97%;
+    --foreground: 195 47% 11%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 195 47% 11%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 195 47% 11%;
+
+    --primary: 192 70% 35%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 20% 65%;
+    --secondary-foreground: 195 47% 11%;
+
+    --muted: 195 14% 96%;
+    --muted-foreground: 195 9% 46%;
+
+    --accent: 175 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 195 13% 91%;
+    --input: 195 13% 91%;
+    --ring: 192 70% 35%;
+
+    --radius: 0.5rem;
+
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 192 70% 45%;
+    --info-foreground: 0 0% 100%;
+
+    /* Sidebar */
+    --sidebar-background: 195 50% 15%;
+    --sidebar-foreground: 195 10% 95%;
+    --sidebar-primary: 192 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 195 45% 22%;
+    --sidebar-accent-foreground: 195 10% 95%;
+    --sidebar-border: 195 45% 22%;
+    --sidebar-ring: 192 70% 45%;
+
+    /* Chart Colors */
+    --chart-1: 192 70% 35%;
+    --chart-2: 175 60% 40%;
+    --chart-3: 142 76% 36%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+
+  .dark {
+    --background: 195 47% 6%;
+    --foreground: 195 10% 95%;
+
+    --card: 195 47% 9%;
+    --card-foreground: 195 10% 95%;
+
+    --popover: 195 47% 9%;
+    --popover-foreground: 195 10% 95%;
+
+    --primary: 192 70% 45%;
+    --primary-foreground: 0 0% 100%;
+
+    --secondary: 195 33% 17%;
+    --secondary-foreground: 195 10% 95%;
+
+    --muted: 195 33% 17%;
+    --muted-foreground: 195 20% 65%;
+
+    --accent: 175 60% 40%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 195 33% 17%;
+    --input: 195 33% 17%;
+    --ring: 192 70% 45%;
+
+    /* Status Colors */
+    --success: 142 76% 36%;
+    --success-foreground: 0 0% 100%;
+    --warning: 38 92% 50%;
+    --warning-foreground: 0 0% 0%;
+    --info: 192 70% 45%;
+    --info-foreground: 0 0% 100%;
+
+    /* Sidebar */
+    --sidebar-background: 195 47% 6%;
+    --sidebar-foreground: 195 10% 95%;
+    --sidebar-primary: 192 70% 45%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 195 47% 11%;
+    --sidebar-accent-foreground: 195 10% 95%;
+    --sidebar-border: 195 47% 11%;
+    --sidebar-ring: 192 70% 45%;
+
+    /* Chart Colors */
+    --chart-1: 192 70% 45%;
+    --chart-2: 175 60% 40%;
+    --chart-3: 142 76% 36%;
+    --chart-4: 38 92% 50%;
+    --chart-5: 0 84% 60%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  .stat-card {
+    @apply rounded-lg border bg-card p-6 shadow-sm transition-all hover:shadow-md;
+  }
+
+  .data-table {
+    @apply w-full rounded-lg border bg-card;
+  }
+
+  .status-badge {
+    @apply inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium;
+  }
+}

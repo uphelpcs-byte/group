@@ -1,0 +1,1 @@
+ALTER TABLE public.attendance_records ADD COLUMN adjusted_hours numeric DEFAULT NULL;
