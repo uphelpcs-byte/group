@@ -709,6 +709,9 @@ export type Database = {
           hourly_rate: number
           id: string
           notes: string | null
+          training_end_date: string | null
+          training_hourly_rate: number | null
+          training_start_date: string | null
           updated_at: string
           user_id: string
         }
@@ -719,6 +722,9 @@ export type Database = {
           hourly_rate?: number
           id?: string
           notes?: string | null
+          training_end_date?: string | null
+          training_hourly_rate?: number | null
+          training_start_date?: string | null
           updated_at?: string
           user_id: string
         }
@@ -729,6 +735,9 @@ export type Database = {
           hourly_rate?: number
           id?: string
           notes?: string | null
+          training_end_date?: string | null
+          training_hourly_rate?: number | null
+          training_start_date?: string | null
           updated_at?: string
           user_id?: string
         }

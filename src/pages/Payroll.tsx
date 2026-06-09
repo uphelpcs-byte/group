@@ -38,6 +38,9 @@ interface PayrollSetting {
   hourly_rate: number;
   effective_from: string;
   notes: string | null;
+  training_start_date: string | null;
+  training_end_date: string | null;
+  training_hourly_rate: number | null;
 }
 
 interface MemberPayroll {
@@ -46,10 +49,17 @@ interface MemberPayroll {
   email: string;
   hourlyRate: number;
   totalHours: number;
+  regularHours: number;
+  trainingHours: number;
   weeklyHours: { week: string; hours: number }[];
   weeklyHolidayPay: number;
   basePay: number;
+  regularBasePay: number;
+  trainingBasePay: number;
   totalPay: number;
+  trainingStart: string | null;
+  trainingEnd: string | null;
+  trainingRate: number | null;
   memo: string | null;
 }
 
@@ -60,6 +70,9 @@ export default function Payroll() {
   const [isSettingDialogOpen, setIsSettingDialogOpen] = useState(false);
   const [selectedMember, setSelectedMember] = useState<{ id: string; name: string; hourlyRate: number } | null>(null);
   const [hourlyRateInput, setHourlyRateInput] = useState('');
+  const [trainingStartInput, setTrainingStartInput] = useState('');
+  const [trainingEndInput, setTrainingEndInput] = useState('');
+  const [trainingRateInput, setTrainingRateInput] = useState('');
   const [editingMemo, setEditingMemo] = useState<string | null>(null);
   const [memoInput, setMemoInput] = useState('');
   const [detailMember, setDetailMember] = useState<string>('all');
@@ -156,17 +169,22 @@ export default function Payroll() {
   const savePayrollSettingMutation = useMutation({
     mutationFn: async () => {
       if (!selectedMember || !hourlyRateInput) return;
+      const trainingFields = {
+        training_start_date: trainingStartInput || null,
+        training_end_date: trainingEndInput || null,
+        training_hourly_rate: trainingRateInput ? parseFloat(trainingRateInput) : null,
+      };
       const existingSetting = payrollSettings.find(s => s.user_id === selectedMember.id);
       if (existingSetting) {
         const { error } = await supabase
           .from('payroll_settings')
-          .update({ hourly_rate: parseFloat(hourlyRateInput) })
+          .update({ hourly_rate: parseFloat(hourlyRateInput), ...trainingFields })
           .eq('id', existingSetting.id);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('payroll_settings')
-          .insert({ user_id: selectedMember.id, hourly_rate: parseFloat(hourlyRateInput), created_by: user?.id });
+          .insert({ user_id: selectedMember.id, hourly_rate: parseFloat(hourlyRateInput), created_by: user?.id, ...trainingFields });
         if (error) throw error;
       }
     },
@@ -176,6 +194,9 @@ export default function Payroll() {
       setIsSettingDialogOpen(false);
       setSelectedMember(null);
       setHourlyRateInput('');
+      setTrainingStartInput('');
+      setTrainingEndInput('');
+      setTrainingRateInput('');
     },
     onError: (error: any) => {
       toast.error(error.message || '저장 실패');
@@ -189,39 +210,61 @@ export default function Payroll() {
     return 0;
   };
 
-  // 급여 계산 (보정시간 반영)
+  // 급여 계산 (보정시간 + 교육기간 시급 반영)
   const memberPayrolls = useMemo<MemberPayroll[]>(() => {
     return members.map(member => {
       const memberRecords = completedRecords.filter(r => r.user_id === member.id);
       const setting = payrollSettings.find(s => s.user_id === member.id);
       const hourlyRate = setting?.hourly_rate || 0;
+      const trainingStart = setting?.training_start_date || null;
+      const trainingEnd = setting?.training_end_date || null;
+      const trainingRate = setting?.training_hourly_rate ?? null;
 
-      const totalHours = memberRecords.reduce((sum, r) => sum + getEffectiveHours(r), 0);
+      const inTraining = (workDate: string) =>
+        !!(trainingStart && trainingEnd && trainingRate != null &&
+           workDate >= trainingStart && workDate <= trainingEnd);
+      const rateFor = (workDate: string) => (inTraining(workDate) ? (trainingRate as number) : hourlyRate);
 
-      const weeks = eachWeekOfInterval(
-        { start: monthStart, end: monthEnd },
-        { locale: ko }
-      );
+      let regularHours = 0;
+      let trainingHours = 0;
+      let regularBasePay = 0;
+      let trainingBasePay = 0;
+      for (const r of memberRecords) {
+        const h = getEffectiveHours(r);
+        if (inTraining(r.work_date)) {
+          trainingHours += h;
+          trainingBasePay += h * (trainingRate as number);
+        } else {
+          regularHours += h;
+          regularBasePay += h * hourlyRate;
+        }
+      }
+      const totalHours = regularHours + trainingHours;
+      const basePay = regularBasePay + trainingBasePay;
 
-      const weeklyHours = weeks.map(weekStart => {
+      const weeks = eachWeekOfInterval({ start: monthStart, end: monthEnd }, { locale: ko });
+      const weeklyDetail = weeks.map(weekStart => {
         const weekEnd = endOfWeek(weekStart, { locale: ko });
-        const weekRecords = memberRecords.filter(r => {
-          const recordDate = new Date(r.work_date);
-          return isWithinInterval(recordDate, { start: weekStart, end: weekEnd });
-        });
+        const weekRecords = memberRecords.filter(r =>
+          isWithinInterval(new Date(r.work_date), { start: weekStart, end: weekEnd })
+        );
         const hours = weekRecords.reduce((sum, r) => sum + getEffectiveHours(r), 0);
-        return { week: format(weekStart, 'M/d', { locale: ko }), hours };
+        return { weekStart, weekRecords, hours };
       });
 
       let weeklyHolidayPay = 0;
-      weeklyHours.forEach(wh => {
-        if (wh.hours >= 15) {
-          const holidayHours = Math.min((wh.hours / 40) * 8, 8);
-          weeklyHolidayPay += holidayHours * hourlyRate;
+      for (const wd of weeklyDetail) {
+        if (wd.hours >= 15) {
+          // 해당 주에 적용된 시급의 가중평균으로 주휴수당 계산
+          const weekPay = wd.weekRecords.reduce(
+            (s, r) => s + getEffectiveHours(r) * rateFor(r.work_date), 0
+          );
+          const avgRate = wd.hours > 0 ? weekPay / wd.hours : 0;
+          const holidayHours = Math.min((wd.hours / 40) * 8, 8);
+          weeklyHolidayPay += holidayHours * avgRate;
         }
-      });
+      }
 
-      const basePay = totalHours * hourlyRate;
       const totalPay = basePay + weeklyHolidayPay;
 
       return {
@@ -230,10 +273,20 @@ export default function Payroll() {
         email: member.email,
         hourlyRate,
         totalHours,
-        weeklyHours,
+        regularHours,
+        trainingHours,
+        weeklyHours: weeklyDetail.map(wd => ({
+          week: format(wd.weekStart, 'M/d', { locale: ko }),
+          hours: wd.hours,
+        })),
         weeklyHolidayPay,
         basePay,
+        regularBasePay,
+        trainingBasePay,
         totalPay,
+        trainingStart,
+        trainingEnd,
+        trainingRate,
         memo: setting?.notes || null,
       };
     }).filter(m => m.totalHours > 0 || m.hourlyRate > 0);
@@ -264,6 +317,10 @@ export default function Payroll() {
   const openSettingDialog = (member: { id: string; name: string; hourlyRate: number }) => {
     setSelectedMember(member);
     setHourlyRateInput(member.hourlyRate > 0 ? member.hourlyRate.toString() : '');
+    const existing = payrollSettings.find(s => s.user_id === member.id);
+    setTrainingStartInput(existing?.training_start_date || '');
+    setTrainingEndInput(existing?.training_end_date || '');
+    setTrainingRateInput(existing?.training_hourly_rate != null ? String(existing.training_hourly_rate) : '');
     setIsSettingDialogOpen(true);
   };
 
@@ -395,27 +452,41 @@ export default function Payroll() {
   const downloadIndividualExcel = (member: MemberPayroll) => {
     const monthLabel = format(new Date(selectedMonth + '-01'), 'yyyy년 M월', { locale: ko });
 
-    const data = [
+    const hasTrainingSetting = member.trainingRate != null && member.trainingStart && member.trainingEnd;
+    const hasTrainingHours = member.trainingHours > 0;
+    const round2 = (n: number) => Math.round(n * 100) / 100;
+
+    const data: (string | number)[][] = [
       [`${monthLabel} 급여명세서`],
       [],
       ['성명', member.name],
       ['이메일', member.email],
-      ['시급', member.hourlyRate],
-      [],
-      ['주차', '근무시간(h)', '주휴수당 대상'],
-      ...member.weeklyHours.map(wh => [
-        `${wh.week} 주`,
-        Math.round(wh.hours * 10) / 10,
-        wh.hours >= 15 ? 'O' : '-',
-      ]),
-      [],
-      ['총 근무시간', Math.round(member.totalHours * 100) / 100],
-      ['기본급', member.basePay],
-      ['주휴수당', member.weeklyHolidayPay],
-      ['총 지급액', member.totalPay],
-      [],
-      [`발급일: ${format(new Date(), 'yyyy년 MM월 dd일')}`],
+      ['시급 (일반)', member.hourlyRate],
     ];
+    if (hasTrainingSetting) {
+      data.push(['교육 기간', `${member.trainingStart} ~ ${member.trainingEnd}`]);
+      data.push(['시급 (교육)', member.trainingRate as number]);
+    }
+    data.push([]);
+    data.push(['주차', '근무시간(h)', '주휴수당 대상']);
+    member.weeklyHours.forEach(wh => {
+      data.push([`${wh.week} 주`, Math.round(wh.hours * 10) / 10, wh.hours >= 15 ? 'O' : '-']);
+    });
+    data.push([]);
+    data.push(['총 근무시간', round2(member.totalHours)]);
+    if (hasTrainingHours) {
+      data.push(['  · 일반 근무시간', round2(member.regularHours)]);
+      data.push(['  · 교육 근무시간', round2(member.trainingHours)]);
+    }
+    data.push(['기본급', member.basePay]);
+    if (hasTrainingHours) {
+      data.push(['  · 일반기간 기본급', member.regularBasePay]);
+      data.push(['  · 교육기간 기본급', member.trainingBasePay]);
+    }
+    data.push(['주휴수당', member.weeklyHolidayPay]);
+    data.push(['총 지급액', member.totalPay]);
+    data.push([]);
+    data.push([`발급일: ${format(new Date(), 'yyyy년 MM월 dd일')}`]);
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.aoa_to_sheet(data);
@@ -570,8 +641,20 @@ export default function Payroll() {
                           </TableCell>
                           <TableCell className="text-right">
                             {member.hourlyRate > 0 ? formatCurrency(member.hourlyRate) : '-'}
+                            {member.trainingHours > 0 && member.trainingRate != null && (
+                              <div className="text-xs text-muted-foreground">
+                                교육 {formatCurrency(member.trainingRate)}
+                              </div>
+                            )}
                           </TableCell>
-                          <TableCell className="text-right">{formatHours(member.totalHours)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatHours(member.totalHours)}
+                            {member.trainingHours > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                교육 {formatHours(member.trainingHours)}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">{formatCurrency(member.basePay)}</TableCell>
                           <TableCell className="text-right">
                             {member.weeklyHolidayPay > 0 ? (
@@ -878,6 +961,36 @@ export default function Payroll() {
                 <Label>시급 (원)</Label>
                 <Input type="number" value={hourlyRateInput} onChange={(e) => setHourlyRateInput(e.target.value)} placeholder="예: 10000" />
                 <p className="text-xs text-muted-foreground">2024년 최저시급: 9,860원</p>
+              </div>
+
+              <div className="space-y-2 rounded-md border p-3">
+                <Label className="text-sm">교육 기간 (선택)</Label>
+                <p className="text-xs text-muted-foreground">교육 기간 내 근무일은 아래의 교육 시급으로 계산됩니다.</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">시작일</Label>
+                    <Input type="date" value={trainingStartInput} onChange={(e) => setTrainingStartInput(e.target.value)} />
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">종료일</Label>
+                    <Input type="date" value={trainingEndInput} onChange={(e) => setTrainingEndInput(e.target.value)} />
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">교육 시급 (원)</Label>
+                  <Input type="number" value={trainingRateInput} onChange={(e) => setTrainingRateInput(e.target.value)} placeholder="예: 9860" />
+                </div>
+                {(trainingStartInput || trainingEndInput || trainingRateInput) && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 text-xs text-muted-foreground"
+                    onClick={() => { setTrainingStartInput(''); setTrainingEndInput(''); setTrainingRateInput(''); }}
+                  >
+                    교육 기간 지우기
+                  </Button>
+                )}
               </div>
             </div>
           )}
