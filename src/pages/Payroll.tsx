@@ -141,7 +141,10 @@ export default function Payroll() {
     return m;
   }, [issuedPayslips]);
 
-  const completedRecords = useMemo(() => attendanceRecords.filter(r => r.clock_out), [attendanceRecords]);
+  const completedRecords = useMemo(
+    () => attendanceRecords.filter(r => r.clock_out || r.adjusted_hours != null),
+    [attendanceRecords],
+  );
 
   const detailRecords = useMemo(() => {
     if (detailMember === 'all') return attendanceRecords;

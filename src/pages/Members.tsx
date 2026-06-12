@@ -55,6 +55,7 @@ interface Member {
   position: string | null;
   role?: string;
   clientIds: string[];
+  resident_number?: string | null;
 }
 
 interface ClientOption {
@@ -65,7 +66,7 @@ interface ClientOption {
 const ROLES = ['admin', 'director', 'manager', 'agent', 'contractor'] as const;
 
 export default function Members() {
-  const { isManagerPlus } = useAuth();
+  const { isManagerPlus, isAdmin, user } = useAuth();
   const [members, setMembers] = useState<Member[]>([]);
   const [clients, setClients] = useState<ClientOption[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,19 +84,24 @@ export default function Members() {
     role: '',
     work_status: '',
     clientIds: [] as string[],
+    resident_number: '',
   });
 
   useEffect(() => {
     fetchMembers();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   const fetchMembers = async () => {
     try {
-      const [profilesRes, rolesRes, assignmentsRes, clientsRes] = await Promise.all([
+      const [profilesRes, rolesRes, assignmentsRes, clientsRes, sensitiveRes] = await Promise.all([
         supabase.from('profiles').select('*').order('created_at', { ascending: false }),
         supabase.from('user_roles').select('user_id, role'),
         supabase.from('client_assignments').select('user_id, client_id'),
         supabase.from('clients').select('id, name').order('name'),
+        isAdmin
+          ? supabase.from('member_sensitive').select('user_id, resident_number')
+          : Promise.resolve({ data: [] as { user_id: string; resident_number: string | null }[] }),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
@@ -107,6 +113,10 @@ export default function Members() {
         arr.push(a.client_id);
         assignMap.set(a.user_id, arr);
       });
+      const sensitiveMap = new Map(
+        ((sensitiveRes.data || []) as { user_id: string; resident_number: string | null }[])
+          .map((s) => [s.user_id, s.resident_number])
+      );
 
       setClients((clientsRes.data || []) as ClientOption[]);
       setMembers(
@@ -114,6 +124,7 @@ export default function Members() {
           ...profile,
           role: roleMap.get(profile.id) || 'agent',
           clientIds: assignMap.get(profile.id) || [],
+          resident_number: sensitiveMap.get(profile.id) ?? null,
         }))
       );
     } catch (error) {
@@ -205,6 +216,7 @@ export default function Members() {
       role: member.role || 'agent',
       work_status: member.work_status,
       clientIds: member.clientIds || [],
+      resident_number: member.resident_number || '',
     });
     setEditDialogOpen(true);
   };
@@ -252,6 +264,21 @@ export default function Members() {
           .eq('user_id', selectedMember.id)
           .in('client_id', toRemove);
         if (error) throw error;
+      }
+
+      // 주민등록번호 (대표/이사만 수정 가능)
+      if (isAdmin) {
+        const trimmed = editForm.resident_number.trim();
+        const original = selectedMember.resident_number || '';
+        if (trimmed !== original) {
+          const { error } = await supabase
+            .from('member_sensitive')
+            .upsert(
+              { user_id: selectedMember.id, resident_number: trimmed || null, updated_by: user?.id ?? null },
+              { onConflict: 'user_id' },
+            );
+          if (error) throw error;
+        }
       }
 
       toast.success('구성원 정보가 수정되었습니다');
@@ -366,13 +393,14 @@ export default function Members() {
                   <TableHead>연락처</TableHead>
                   <TableHead>상태</TableHead>
                   <TableHead>가입일</TableHead>
+                  {isAdmin && <TableHead>주민등록번호</TableHead>}
                   <TableHead className="w-[50px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredMembers.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-8 text-muted-foreground">
+                    <TableCell colSpan={isAdmin ? 10 : 9} className="text-center py-8 text-muted-foreground">
                       {hasActiveFilters ? '검색 결과가 없습니다' : '등록된 구성원이 없습니다'}
                     </TableCell>
                   </TableRow>
@@ -436,6 +464,11 @@ export default function Members() {
                       <TableCell className="text-muted-foreground">
                         {format(new Date(member.created_at), 'yyyy.MM.dd')}
                       </TableCell>
+                      {isAdmin && (
+                        <TableCell className="font-mono text-sm">
+                          {member.resident_number || <span className="text-muted-foreground">-</span>}
+                        </TableCell>
+                      )}
                       <TableCell>
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
@@ -525,6 +558,12 @@ export default function Members() {
                       <p className="font-medium">-</p>
                     )}
                   </div>
+                  {isAdmin && (
+                    <div className="col-span-2">
+                      <Label className="text-muted-foreground text-xs">주민등록번호</Label>
+                      <p className="font-mono font-medium">{selectedMember.resident_number || '-'}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
@@ -641,6 +680,18 @@ export default function Members() {
                   </div>
                 )}
               </div>
+              {isAdmin && (
+                <div className="space-y-2">
+                  <Label>주민등록번호</Label>
+                  <Input
+                    value={editForm.resident_number}
+                    onChange={(e) => setEditForm({ ...editForm, resident_number: e.target.value })}
+                    placeholder="000000-0000000"
+                    autoComplete="off"
+                  />
+                  <p className="text-xs text-muted-foreground">대표 / 이사만 조회·수정할 수 있습니다.</p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setEditDialogOpen(false)}>취소</Button>
