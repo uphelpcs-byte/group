@@ -329,12 +329,19 @@ export default function Revenue() {
     onError: (e: any) => toast.error(e.message || '생성 실패'),
   });
 
+  const currentMonth = format(new Date(), 'yyyy-MM');
+  const isFutureMonth = selectedMonth > currentMonth;
+
   const monthOptions = useMemo(() => {
-    const options = [];
+    const options: { value: string; label: string; isFuture: boolean }[] = [];
     const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      options.push({ value: format(date, 'yyyy-MM'), label: format(date, 'yyyy년 M월', { locale: ko }) });
+    // 미래 3개월 → 현재 → 과거 11개월 (총 15개월)
+    for (let i = 3; i >= -11; i--) {
+      const date = new Date(now.getFullYear(), now.getMonth() + i, 1);
+      const value = format(date, 'yyyy-MM');
+      const baseLabel = format(date, 'yyyy년 M월', { locale: ko });
+      const isFuture = i > 0;
+      options.push({ value, label: isFuture ? `${baseLabel} (예정)` : baseLabel, isFuture });
     }
     return options;
   }, []);
@@ -382,20 +389,27 @@ export default function Revenue() {
           {/* 월별 청구/수금 */}
           <TabsContent value="billing" className="space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-                <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {monthOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-                </SelectContent>
-              </Select>
+              <div className="flex items-center gap-2">
+                <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+                  <SelectTrigger className="w-[180px]"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    {monthOptions.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+                {isFutureMonth && (
+                  <Badge variant="outline" className="border-amber-500 text-amber-600">
+                    예상 매출 (미확정)
+                  </Badge>
+                )}
+              </div>
               <Button onClick={() => generateAllMutation.mutate()} disabled={generateAllMutation.isPending}>
                 <Receipt className="mr-2 h-4 w-4" />
-                이번 달 청구 일괄 생성
+                {isFutureMonth ? '해당 월 청구 미리 생성' : '이번 달 청구 일괄 생성'}
               </Button>
             </div>
 
             <div className="grid gap-4 md:grid-cols-4">
-              <StatCard title="총 청구액 (VAT 별도)" value={fmtKRW(totals.billed)} icon={DollarSign} />
+              <StatCard title={isFutureMonth ? '예상 청구액 (VAT 별도)' : '총 청구액 (VAT 별도)'} value={fmtKRW(totals.billed)} icon={DollarSign} />
               <StatCard title="합계 (VAT 포함)" value={fmtKRW(totals.withVat)} icon={Wallet} />
               <StatCard title="수금 완료" value={fmtKRW(totals.paid)} icon={TrendingUp} valueClass="text-green-600" />
               <StatCard
