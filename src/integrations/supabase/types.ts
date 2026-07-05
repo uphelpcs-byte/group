@@ -703,18 +703,27 @@ export type Database = {
       }
       member_sensitive: {
         Row: {
+          bank_account_holder: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           resident_number: string | null
           updated_at: string
           updated_by: string | null
           user_id: string
         }
         Insert: {
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           resident_number?: string | null
           updated_at?: string
           updated_by?: string | null
           user_id: string
         }
         Update: {
+          bank_account_holder?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           resident_number?: string | null
           updated_at?: string
           updated_by?: string | null

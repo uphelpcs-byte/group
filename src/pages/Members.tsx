@@ -56,6 +56,9 @@ interface Member {
   role?: string;
   clientIds: string[];
   resident_number?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  bank_account_holder?: string | null;
 }
 
 interface ClientOption {
@@ -85,6 +88,9 @@ export default function Members() {
     work_status: '',
     clientIds: [] as string[],
     resident_number: '',
+    bank_name: '',
+    bank_account_number: '',
+    bank_account_holder: '',
   });
 
   useEffect(() => {
@@ -100,8 +106,18 @@ export default function Members() {
         supabase.from('client_assignments').select('user_id, client_id'),
         supabase.from('clients').select('id, name').order('name'),
         isAdmin
-          ? supabase.from('member_sensitive').select('user_id, resident_number')
-          : Promise.resolve({ data: [] as { user_id: string; resident_number: string | null }[] }),
+          ? supabase
+              .from('member_sensitive')
+              .select('user_id, resident_number, bank_name, bank_account_number, bank_account_holder')
+          : Promise.resolve({
+              data: [] as {
+                user_id: string;
+                resident_number: string | null;
+                bank_name: string | null;
+                bank_account_number: string | null;
+                bank_account_holder: string | null;
+              }[],
+            }),
       ]);
 
       if (profilesRes.error) throw profilesRes.error;
@@ -114,18 +130,31 @@ export default function Members() {
         assignMap.set(a.user_id, arr);
       });
       const sensitiveMap = new Map(
-        ((sensitiveRes.data || []) as { user_id: string; resident_number: string | null }[])
-          .map((s) => [s.user_id, s.resident_number])
+        (
+          (sensitiveRes.data || []) as {
+            user_id: string;
+            resident_number: string | null;
+            bank_name: string | null;
+            bank_account_number: string | null;
+            bank_account_holder: string | null;
+          }[]
+        ).map((s) => [s.user_id, s])
       );
 
       setClients((clientsRes.data || []) as ClientOption[]);
       setMembers(
-        (profilesRes.data || []).map((profile) => ({
-          ...profile,
-          role: roleMap.get(profile.id) || 'agent',
-          clientIds: assignMap.get(profile.id) || [],
-          resident_number: sensitiveMap.get(profile.id) ?? null,
-        }))
+        (profilesRes.data || []).map((profile) => {
+          const s = sensitiveMap.get(profile.id);
+          return {
+            ...profile,
+            role: roleMap.get(profile.id) || 'agent',
+            clientIds: assignMap.get(profile.id) || [],
+            resident_number: s?.resident_number ?? null,
+            bank_name: s?.bank_name ?? null,
+            bank_account_number: s?.bank_account_number ?? null,
+            bank_account_holder: s?.bank_account_holder ?? null,
+          };
+        })
       );
     } catch (error) {
       console.error('Error fetching members:', error);
@@ -217,6 +246,9 @@ export default function Members() {
       work_status: member.work_status,
       clientIds: member.clientIds || [],
       resident_number: member.resident_number || '',
+      bank_name: member.bank_name || '',
+      bank_account_number: member.bank_account_number || '',
+      bank_account_holder: member.bank_account_holder || '',
     });
     setEditDialogOpen(true);
   };
@@ -266,15 +298,29 @@ export default function Members() {
         if (error) throw error;
       }
 
-      // 주민등록번호 (대표/이사만 수정 가능)
+      // 주민등록번호 / 계좌정보 (대표/이사만 수정 가능)
       if (isAdmin) {
-        const trimmed = editForm.resident_number.trim();
-        const original = selectedMember.resident_number || '';
-        if (trimmed !== original) {
+        const rn = editForm.resident_number.trim();
+        const bn = editForm.bank_name.trim();
+        const ba = editForm.bank_account_number.trim();
+        const bh = editForm.bank_account_holder.trim();
+        const changed =
+          rn !== (selectedMember.resident_number || '') ||
+          bn !== (selectedMember.bank_name || '') ||
+          ba !== (selectedMember.bank_account_number || '') ||
+          bh !== (selectedMember.bank_account_holder || '');
+        if (changed) {
           const { error } = await supabase
             .from('member_sensitive')
             .upsert(
-              { user_id: selectedMember.id, resident_number: trimmed || null, updated_by: user?.id ?? null },
+              {
+                user_id: selectedMember.id,
+                resident_number: rn || null,
+                bank_name: bn || null,
+                bank_account_number: ba || null,
+                bank_account_holder: bh || null,
+                updated_by: user?.id ?? null,
+              },
               { onConflict: 'user_id' },
             );
           if (error) throw error;
@@ -559,10 +605,23 @@ export default function Members() {
                     )}
                   </div>
                   {isAdmin && (
-                    <div className="col-span-2">
-                      <Label className="text-muted-foreground text-xs">주민등록번호</Label>
-                      <p className="font-mono font-medium">{selectedMember.resident_number || '-'}</p>
-                    </div>
+                    <>
+                      <div className="col-span-2">
+                        <Label className="text-muted-foreground text-xs">주민등록번호</Label>
+                        <p className="font-mono font-medium">{selectedMember.resident_number || '-'}</p>
+                      </div>
+                      <div className="col-span-2">
+                        <Label className="text-muted-foreground text-xs">계좌 정보</Label>
+                        {selectedMember.bank_name || selectedMember.bank_account_number || selectedMember.bank_account_holder ? (
+                          <p className="font-medium">
+                            {selectedMember.bank_account_holder || '-'} · {selectedMember.bank_name || '-'}{' '}
+                            <span className="font-mono">{selectedMember.bank_account_number || '-'}</span>
+                          </p>
+                        ) : (
+                          <p className="font-medium">-</p>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -681,16 +740,43 @@ export default function Members() {
                 )}
               </div>
               {isAdmin && (
-                <div className="space-y-2">
-                  <Label>주민등록번호</Label>
-                  <Input
-                    value={editForm.resident_number}
-                    onChange={(e) => setEditForm({ ...editForm, resident_number: e.target.value })}
-                    placeholder="000000-0000000"
-                    autoComplete="off"
-                  />
-                  <p className="text-xs text-muted-foreground">대표 / 이사만 조회·수정할 수 있습니다.</p>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>주민등록번호</Label>
+                    <Input
+                      value={editForm.resident_number}
+                      onChange={(e) => setEditForm({ ...editForm, resident_number: e.target.value })}
+                      placeholder="000000-0000000"
+                      autoComplete="off"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      프리랜서 세금신고를 위해 필요합니다. 대표/이사만 조회·수정할 수 있습니다.
+                    </p>
+                  </div>
+                  <div className="space-y-2">
+                    <Label>계좌 정보</Label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Input
+                        placeholder="예금주"
+                        value={editForm.bank_account_holder}
+                        onChange={(e) => setEditForm({ ...editForm, bank_account_holder: e.target.value })}
+                        autoComplete="off"
+                      />
+                      <Input
+                        placeholder="은행 (예: 국민)"
+                        value={editForm.bank_name}
+                        onChange={(e) => setEditForm({ ...editForm, bank_name: e.target.value })}
+                        autoComplete="off"
+                      />
+                    </div>
+                    <Input
+                      placeholder="계좌번호"
+                      value={editForm.bank_account_number}
+                      onChange={(e) => setEditForm({ ...editForm, bank_account_number: e.target.value })}
+                      autoComplete="off"
+                    />
+                  </div>
+                </>
               )}
             </div>
             <DialogFooter>

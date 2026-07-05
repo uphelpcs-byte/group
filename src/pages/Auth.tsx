@@ -24,6 +24,15 @@ const signupSchema = loginSchema.extend({
   confirmPassword: z.string(),
   department: z.enum(DEPARTMENTS, { required_error: '부서를 선택하세요' }),
   position: z.enum(POSITIONS, { required_error: '직급을 선택하세요' }),
+  residentNumber: z
+    .string()
+    .regex(/^\d{6}-\d{7}$/, '주민등록번호는 000000-0000000 형식으로 입력하세요'),
+  bankName: z.string().min(1, '은행을 입력하세요'),
+  bankAccountNumber: z
+    .string()
+    .regex(/^[\d-]+$/, '계좌번호는 숫자와 -만 입력하세요')
+    .min(6, '계좌번호를 정확히 입력하세요'),
+  bankAccountHolder: z.string().min(1, '예금주를 입력하세요'),
 }).refine((data) => data.password === data.confirmPassword, {
   message: '비밀번호가 일치하지 않습니다',
   path: ['confirmPassword'],
@@ -45,6 +54,10 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [department, setDepartment] = useState<string>('');
   const [position, setPosition] = useState<string>('');
+  const [residentNumber, setResidentNumber] = useState('');
+  const [bankName, setBankName] = useState('');
+  const [bankAccountNumber, setBankAccountNumber] = useState('');
+  const [bankAccountHolder, setBankAccountHolder] = useState('');
 
   useEffect(() => {
     if (user && !loading) {
@@ -91,6 +104,10 @@ export default function Auth() {
         fullName,
         department,
         position,
+        residentNumber,
+        bankName,
+        bankAccountNumber,
+        bankAccountHolder,
       });
 
       if (!validation.success) {
@@ -98,7 +115,14 @@ export default function Auth() {
         return;
       }
 
-      const { error } = await signUp(signupEmail, signupPassword, fullName, department, position);
+      const { error } = await signUp(
+        signupEmail,
+        signupPassword,
+        fullName,
+        department,
+        position,
+        { residentNumber, bankName, bankAccountNumber, bankAccountHolder },
+      );
       if (error) {
         if (error.message.includes('already registered')) {
           toast.error('이미 등록된 이메일입니다');
@@ -252,6 +276,54 @@ export default function Auth() {
                       placeholder="비밀번호 재입력"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="signup-resident">주민등록번호</Label>
+                    <Input
+                      id="signup-resident"
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="000000-0000000"
+                      value={residentNumber}
+                      onChange={(e) => setResidentNumber(e.target.value)}
+                      autoComplete="off"
+                      required
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      프리랜서 세금신고를 위해 필요합니다. 대표/이사만 열람할 수 있습니다.
+                    </p>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>계좌 정보</Label>
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        type="text"
+                        placeholder="예금주"
+                        value={bankAccountHolder}
+                        onChange={(e) => setBankAccountHolder(e.target.value)}
+                        autoComplete="off"
+                        required
+                      />
+                      <Input
+                        type="text"
+                        placeholder="은행 (예: 국민)"
+                        value={bankName}
+                        onChange={(e) => setBankName(e.target.value)}
+                        autoComplete="off"
+                        required
+                      />
+                    </div>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      placeholder="계좌번호"
+                      value={bankAccountNumber}
+                      onChange={(e) => setBankAccountNumber(e.target.value)}
+                      autoComplete="off"
                       required
                     />
                   </div>

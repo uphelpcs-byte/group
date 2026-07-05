@@ -10,7 +10,19 @@ interface AuthContextType {
   role: AppRole | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signUp: (email: string, password: string, fullName: string, department?: string, position?: string) => Promise<{ error: Error | null }>;
+  signUp: (
+    email: string,
+    password: string,
+    fullName: string,
+    department?: string,
+    position?: string,
+    sensitive?: {
+      residentNumber?: string;
+      bankName?: string;
+      bankAccountNumber?: string;
+      bankAccountHolder?: string;
+    }
+  ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   isManagerPlus: boolean;
   isAdmin: boolean;
@@ -77,14 +89,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUp = async (email: string, password: string, fullName: string, department?: string, position?: string) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    fullName: string,
+    department?: string,
+    position?: string,
+    sensitive?: {
+      residentNumber?: string;
+      bankName?: string;
+      bankAccountNumber?: string;
+      bankAccountHolder?: string;
+    }
+  ) => {
     const redirectUrl = `${window.location.origin}/`;
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: redirectUrl,
-        data: { full_name: fullName, department, position }
+        // handle_new_user 트리거가 raw_user_meta_data에서 profiles / member_sensitive 를 채웁니다
+        data: {
+          full_name: fullName,
+          department,
+          position,
+          resident_number: sensitive?.residentNumber,
+          bank_name: sensitive?.bankName,
+          bank_account_number: sensitive?.bankAccountNumber,
+          bank_account_holder: sensitive?.bankAccountHolder,
+        }
       }
     });
     return { error: error as Error | null };
