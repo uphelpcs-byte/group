@@ -337,7 +337,7 @@ export default function Payroll() {
         trainingRate,
         memo: setting?.notes || null,
       };
-    }).filter(m => m.totalHours > 0 || m.hourlyRate > 0);
+    }).filter(m => m.totalHours > 0);
   }, [members, completedRecords, payrollSettings, monthStart, monthEnd]);
 
   const totals = useMemo(() => {
