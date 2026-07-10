@@ -51,6 +51,8 @@ interface MemberPayroll {
   totalHours: number;
   regularHours: number;
   trainingHours: number;
+  nightHours: number;
+  nightPremium: number;
   weeklyHours: { week: string; hours: number }[];
   weeklyHolidayPay: number;
   basePay: number;
@@ -213,6 +215,41 @@ export default function Payroll() {
     return 0;
   };
 
+  // 22:00~다음날 06:00 야간 시간대와 겹치는 시간(hours)
+  const nightOverlapHours = (startISO: string, endISO: string): number => {
+    const start = new Date(startISO);
+    const end = new Date(endISO);
+    if (isNaN(start.getTime()) || isNaN(end.getTime()) || end <= start) return 0;
+    let total = 0;
+    const cursor = new Date(start);
+    cursor.setHours(0, 0, 0, 0);
+    const lastDay = new Date(end);
+    lastDay.setHours(0, 0, 0, 0);
+    while (cursor <= lastDay) {
+      const ns = new Date(cursor); ns.setHours(22, 0, 0, 0);
+      const ne = new Date(cursor); ne.setDate(ne.getDate() + 1); ne.setHours(6, 0, 0, 0);
+      const oStart = Math.max(ns.getTime(), start.getTime());
+      const oEnd = Math.min(ne.getTime(), end.getTime());
+      if (oEnd > oStart) total += (oEnd - oStart) / 3_600_000;
+      cursor.setDate(cursor.getDate() + 1);
+    }
+    return total;
+  };
+
+  // 근무 기록 하나에서 야간 근무시간(식사시간 야간 부분 제외, 보정시간 비율로 스케일)
+  const nightHoursForRecord = (r: AttendanceRecord): number => {
+    if (!r.clock_in || !r.clock_out) return 0;
+    const effective = getEffectiveHours(r);
+    if (effective <= 0) return 0;
+    const rawShift = (new Date(r.clock_out).getTime() - new Date(r.clock_in).getTime()) / 3_600_000 - (r.meal_duration || 0);
+    if (rawShift <= 0) return 0;
+    let rawNight = nightOverlapHours(r.clock_in, r.clock_out);
+    if (r.meal_out && r.meal_in) rawNight -= nightOverlapHours(r.meal_out, r.meal_in);
+    if (rawNight <= 0) return 0;
+    const scaled = rawNight * (effective / rawShift);
+    return Math.max(0, Math.min(scaled, effective));
+  };
+
   // 급여 계산 (보정시간 + 교육기간 시급 반영)
   const memberPayrolls = useMemo<MemberPayroll[]>(() => {
     return members.map(member => {
@@ -232,8 +269,14 @@ export default function Payroll() {
       let trainingHours = 0;
       let regularBasePay = 0;
       let trainingBasePay = 0;
+      let nightHours = 0;
+      let nightPremium = 0;
       for (const r of memberRecords) {
         const h = getEffectiveHours(r);
+        const rate = inTraining(r.work_date) ? (trainingRate as number) : hourlyRate;
+        const nh = nightHoursForRecord(r);
+        nightHours += nh;
+        nightPremium += nh * rate * 0.5;
         if (inTraining(r.work_date)) {
           trainingHours += h;
           trainingBasePay += h * (trainingRate as number);
@@ -268,7 +311,7 @@ export default function Payroll() {
         }
       }
 
-      const totalPay = basePay + weeklyHolidayPay;
+      const totalPay = basePay + weeklyHolidayPay + nightPremium;
 
       return {
         userId: member.id,
@@ -278,6 +321,8 @@ export default function Payroll() {
         totalHours,
         regularHours,
         trainingHours,
+        nightHours,
+        nightPremium,
         weeklyHours: weeklyDetail.map(wd => ({
           week: format(wd.weekStart, 'M/d', { locale: ko }),
           hours: wd.hours,
@@ -301,9 +346,11 @@ export default function Payroll() {
         totalHours: acc.totalHours + m.totalHours,
         basePay: acc.basePay + m.basePay,
         weeklyHolidayPay: acc.weeklyHolidayPay + m.weeklyHolidayPay,
+        nightHours: acc.nightHours + m.nightHours,
+        nightPremium: acc.nightPremium + m.nightPremium,
         totalPay: acc.totalPay + m.totalPay,
       }),
-      { totalHours: 0, basePay: 0, weeklyHolidayPay: 0, totalPay: 0 }
+      { totalHours: 0, basePay: 0, weeklyHolidayPay: 0, nightHours: 0, nightPremium: 0, totalPay: 0 }
     );
   }, [memberPayrolls]);
 
@@ -422,21 +469,25 @@ export default function Payroll() {
     const summaryData = [
       ['항목', '금액'],
       ['총 근무시간', formatHours(totals.totalHours)],
+      ['  · 야간 근무시간', formatHours(totals.nightHours)],
       ['기본급 합계', totals.basePay],
       ['주휴수당 합계', totals.weeklyHolidayPay],
+      ['야간수당 합계 (0.5배 가산)', totals.nightPremium],
       ['총 급여', totals.totalPay],
     ];
 
     // 구성원별 시트
     const detailData = [
-      ['구성원', '이메일', '시급', '총 근무시간(h)', '기본급', '주휴수당', '총 급여', '메모'],
+      ['구성원', '이메일', '시급', '총 근무시간(h)', '야간시간(h)', '기본급', '주휴수당', '야간수당', '총 급여', '메모'],
       ...memberPayrolls.map(m => [
         m.name,
         m.email,
         m.hourlyRate,
         Math.round(m.totalHours * 100) / 100,
+        Math.round(m.nightHours * 100) / 100,
         m.basePay,
         m.weeklyHolidayPay,
+        Math.round(m.nightPremium),
         m.totalPay,
         m.memo || '',
       ]),
@@ -481,12 +532,18 @@ export default function Payroll() {
       data.push(['  · 일반 근무시간', round2(member.regularHours)]);
       data.push(['  · 교육 근무시간', round2(member.trainingHours)]);
     }
+    if (member.nightHours > 0) {
+      data.push(['  · 야간 근무시간 (22:00~06:00)', round2(member.nightHours)]);
+    }
     data.push(['기본급', member.basePay]);
     if (hasTrainingHours) {
       data.push(['  · 일반기간 기본급', member.regularBasePay]);
       data.push(['  · 교육기간 기본급', member.trainingBasePay]);
     }
     data.push(['주휴수당', member.weeklyHolidayPay]);
+    if (member.nightPremium > 0) {
+      data.push(['야간수당 (야간 근무시간 × 시급 × 0.5)', Math.round(member.nightPremium)]);
+    }
     data.push(['총 지급액', member.totalPay]);
     data.push([]);
     data.push([`발급일: ${format(new Date(), 'yyyy년 MM월 dd일')}`]);
@@ -657,6 +714,11 @@ export default function Payroll() {
                                 교육 {formatHours(member.trainingHours)}
                               </div>
                             )}
+                            {member.nightHours > 0 && (
+                              <div className="text-xs text-indigo-600">
+                                야간 {formatHours(member.nightHours)}
+                              </div>
+                            )}
                           </TableCell>
                           <TableCell className="text-right">{formatCurrency(member.basePay)}</TableCell>
                           <TableCell className="text-right">
@@ -664,6 +726,11 @@ export default function Payroll() {
                               <span className="text-green-600">{formatCurrency(member.weeklyHolidayPay)}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
+                            )}
+                            {member.nightPremium > 0 && (
+                              <div className="text-xs text-indigo-600">
+                                야간수당 +{formatCurrency(member.nightPremium)}
+                              </div>
                             )}
                           </TableCell>
                           <TableCell className="max-w-[200px]">
