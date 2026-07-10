@@ -194,7 +194,6 @@ export default function Payroll() {
     onError: (e: any) => toast.error(e.message || '지급여부 저장 실패'),
   });
 
-  const withholdingNet = (amount: number) => Math.round(amount * 0.967);
 
   const completedRecords = useMemo(
     () => attendanceRecords.filter(r => r.clock_out || r.adjusted_hours != null),
@@ -597,7 +596,15 @@ export default function Payroll() {
     if (member.nightPremium > 0) {
       data.push(['야간수당 (야간 근무시간 × 시급 × 0.5)', Math.round(member.nightPremium)]);
     }
-    data.push(['총 지급액', member.totalPay]);
+    data.push(['총 급여', member.totalPay]);
+    {
+      const incomeTax = Math.round(member.totalPay * 0.03);
+      const localTax = Math.round(member.totalPay * 0.003);
+      const net = member.totalPay - incomeTax - localTax;
+      data.push(['  · 소득세 (3%)', -incomeTax]);
+      data.push(['  · 지방소득세 (0.3%)', -localTax]);
+      data.push(['실지급액 (3.3% 원천징수 후)', net]);
+    }
     data.push([]);
     data.push([`발급일: ${format(new Date(), 'yyyy년 MM월 dd일')}`]);
 
@@ -774,22 +781,10 @@ export default function Payroll() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">
-                            {formatCurrency(member.basePay)}
-                            {member.basePay > 0 && (
-                              <div className="text-xs text-muted-foreground">
-                                3.3% 제외 {formatCurrency(withholdingNet(member.basePay))}
-                              </div>
-                            )}
-                          </TableCell>
+                          <TableCell className="text-right">{formatCurrency(member.basePay)}</TableCell>
                           <TableCell className="text-right">
                             {member.weeklyHolidayPay > 0 ? (
-                              <>
-                                <span className="text-green-600">{formatCurrency(member.weeklyHolidayPay)}</span>
-                                <div className="text-xs text-muted-foreground">
-                                  3.3% 제외 {formatCurrency(withholdingNet(member.weeklyHolidayPay))}
-                                </div>
-                              </>
+                              <span className="text-green-600">{formatCurrency(member.weeklyHolidayPay)}</span>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -831,7 +826,29 @@ export default function Payroll() {
                             )}
                           </TableCell>
                           <TableCell className="text-right font-semibold">
-                            {formatCurrency(member.totalPay)}
+                            {(() => {
+                              const incomeTax = Math.round(member.totalPay * 0.03);
+                              const localTax = Math.round(member.totalPay * 0.003);
+                              const net = member.totalPay - incomeTax - localTax;
+                              return (
+                                <>
+                                  <div>{formatCurrency(member.totalPay)}</div>
+                                  {member.totalPay > 0 && (
+                                    <>
+                                      <div className="text-xs font-normal text-muted-foreground">
+                                        소득세 3% −{formatCurrency(incomeTax)}
+                                      </div>
+                                      <div className="text-xs font-normal text-muted-foreground">
+                                        지방소득세 0.3% −{formatCurrency(localTax)}
+                                      </div>
+                                      <div className="text-xs font-semibold text-primary">
+                                        실지급 {formatCurrency(net)}
+                                      </div>
+                                    </>
+                                  )}
+                                </>
+                              );
+                            })()}
                           </TableCell>
                           <TableCell className="text-center">
                             <Checkbox
