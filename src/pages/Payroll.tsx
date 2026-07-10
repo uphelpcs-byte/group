@@ -17,6 +17,7 @@ import { toast } from 'sonner';
 import { Textarea } from '@/components/ui/textarea';
 import { DollarSign, Clock, Users, Calculator, Settings, Edit, Download, FileText, MessageSquare, Check, X, Send, BadgeCheck } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import * as XLSX from 'xlsx';
 
 interface AttendanceRecord {
@@ -142,6 +143,58 @@ export default function Payroll() {
     issuedPayslips.forEach(p => m.set(p.user_id, p.issued_at));
     return m;
   }, [issuedPayslips]);
+
+  const { data: paidPayments = [] } = useQuery({
+    queryKey: ['payroll-payments', selectedMonth],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('payroll_payments')
+        .select('user_id, paid')
+        .eq('pay_month', selectedMonth);
+      if (error) throw error;
+      return data as { user_id: string; paid: boolean }[];
+    },
+    enabled: isAdmin,
+  });
+
+  const paidMap = useMemo(() => {
+    const m = new Map<string, boolean>();
+    paidPayments.forEach(p => m.set(p.user_id, p.paid));
+    return m;
+  }, [paidPayments]);
+
+  const setPaidMutation = useMutation({
+    mutationFn: async ({ userId, paid }: { userId: string; paid: boolean }) => {
+      if (paid) {
+        const { error } = await supabase
+          .from('payroll_payments')
+          .upsert(
+            {
+              user_id: userId,
+              pay_month: selectedMonth,
+              paid: true,
+              paid_at: new Date().toISOString(),
+              paid_by: user?.id ?? null,
+            },
+            { onConflict: 'user_id,pay_month' },
+          );
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('payroll_payments')
+          .delete()
+          .eq('user_id', userId)
+          .eq('pay_month', selectedMonth);
+        if (error) throw error;
+      }
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['payroll-payments', selectedMonth] });
+    },
+    onError: (e: any) => toast.error(e.message || '지급여부 저장 실패'),
+  });
+
+  const withholdingNet = (amount: number) => Math.round(amount * 0.967);
 
   const completedRecords = useMemo(
     () => attendanceRecords.filter(r => r.clock_out || r.adjusted_hours != null),
@@ -685,8 +738,9 @@ export default function Payroll() {
                         <TableHead className="text-right">총 근무시간</TableHead>
                         <TableHead className="text-right">기본급</TableHead>
                         <TableHead className="text-right">주휴수당</TableHead>
-                        <TableHead className="text-right">총 급여</TableHead>
                         <TableHead>메모</TableHead>
+                        <TableHead className="text-right">총 급여</TableHead>
+                        <TableHead className="text-center">지급</TableHead>
                         <TableHead></TableHead>
                       </TableRow>
                     </TableHeader>
@@ -720,10 +774,22 @@ export default function Payroll() {
                               </div>
                             )}
                           </TableCell>
-                          <TableCell className="text-right">{formatCurrency(member.basePay)}</TableCell>
+                          <TableCell className="text-right">
+                            {formatCurrency(member.basePay)}
+                            {member.basePay > 0 && (
+                              <div className="text-xs text-muted-foreground">
+                                3.3% 제외 {formatCurrency(withholdingNet(member.basePay))}
+                              </div>
+                            )}
+                          </TableCell>
                           <TableCell className="text-right">
                             {member.weeklyHolidayPay > 0 ? (
-                              <span className="text-green-600">{formatCurrency(member.weeklyHolidayPay)}</span>
+                              <>
+                                <span className="text-green-600">{formatCurrency(member.weeklyHolidayPay)}</span>
+                                <div className="text-xs text-muted-foreground">
+                                  3.3% 제외 {formatCurrency(withholdingNet(member.weeklyHolidayPay))}
+                                </div>
+                              </>
                             ) : (
                               <span className="text-muted-foreground">-</span>
                             )}
@@ -766,6 +832,15 @@ export default function Payroll() {
                           </TableCell>
                           <TableCell className="text-right font-semibold">
                             {formatCurrency(member.totalPay)}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Checkbox
+                              checked={paidMap.get(member.userId) === true}
+                              onCheckedChange={(checked) =>
+                                setPaidMutation.mutate({ userId: member.userId, paid: checked === true })
+                              }
+                              aria-label="지급여부"
+                            />
                           </TableCell>
                           <TableCell>
                             <div className="flex items-center gap-1">

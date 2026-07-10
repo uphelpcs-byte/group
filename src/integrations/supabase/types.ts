@@ -739,6 +739,38 @@ export type Database = {
           },
         ]
       }
+      payroll_payments: {
+        Row: {
+          paid: boolean
+          paid_at: string
+          paid_by: string | null
+          pay_month: string
+          user_id: string
+        }
+        Insert: {
+          paid?: boolean
+          paid_at?: string
+          paid_by?: string | null
+          pay_month: string
+          user_id: string
+        }
+        Update: {
+          paid?: boolean
+          paid_at?: string
+          paid_by?: string | null
+          pay_month?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payroll_payments_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payroll_settings: {
         Row: {
           created_at: string
