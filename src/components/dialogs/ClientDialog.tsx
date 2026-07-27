@@ -29,6 +29,7 @@ const emptyForm = {
   manager_email: '',
   monthly_fee: '',
   contract_start_date: '',
+  contract_end_date: '',
   report_show_tags: true,
   report_show_first_response: true,
   report_show_response_rate: false,
@@ -54,6 +55,7 @@ export function ClientDialog({ open, onOpenChange, client, onSuccess }: ClientDi
         manager_email: client.manager_email || '',
         monthly_fee: client.monthly_fee != null ? String(client.monthly_fee) : '',
         contract_start_date: client.contract_start_date || '',
+        contract_end_date: client.contract_end_date || '',
         report_show_tags: client.report_show_tags ?? true,
         report_show_first_response: client.report_show_first_response ?? true,
         report_show_response_rate: client.report_show_response_rate ?? false,
@@ -90,6 +92,7 @@ export function ClientDialog({ open, onOpenChange, client, onSuccess }: ClientDi
         manager_email: formData.manager_email || null,
         monthly_fee: formData.monthly_fee ? Number(formData.monthly_fee) : null,
         contract_start_date: formData.contract_start_date || null,
+        contract_end_date: formData.contract_end_date || null,
         report_show_tags: formData.report_show_tags,
         report_show_first_response: formData.report_show_first_response,
         report_show_response_rate: formData.report_show_response_rate,
@@ -162,6 +165,11 @@ export function ClientDialog({ open, onOpenChange, client, onSuccess }: ClientDi
               <Label>계약 시작일</Label>
               <Input type="date" value={formData.contract_start_date} onChange={(e) => setFormData({ ...formData, contract_start_date: e.target.value })} />
             </div>
+          </div>
+          <div className="grid gap-2">
+            <Label>계약 종료일 (선택)</Label>
+            <Input type="date" value={formData.contract_end_date} onChange={(e) => setFormData({ ...formData, contract_end_date: e.target.value })} />
+            <p className="text-xs text-muted-foreground">종료일을 설정하면 이후 월은 매출관리에서 자동 제외되고, 종료월은 영업일 기준으로 일할계산됩니다.</p>
           </div>
 
           <Separator className="my-2" />

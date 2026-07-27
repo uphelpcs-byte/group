@@ -296,6 +296,7 @@ export type Database = {
           channeltalk_access_key: string | null
           channeltalk_secret: string | null
           contract_start_date: string | null
+          contract_end_date: string | null
           created_at: string
           id: string
           industry: string | null
@@ -316,6 +317,7 @@ export type Database = {
           channeltalk_access_key?: string | null
           channeltalk_secret?: string | null
           contract_start_date?: string | null
+          contract_end_date?: string | null
           created_at?: string
           id?: string
           industry?: string | null
@@ -336,6 +338,7 @@ export type Database = {
           channeltalk_access_key?: string | null
           channeltalk_secret?: string | null
           contract_start_date?: string | null
+          contract_end_date?: string | null
           created_at?: string
           id?: string
           industry?: string | null

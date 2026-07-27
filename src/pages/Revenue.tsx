@@ -45,6 +45,7 @@ interface ClientRow {
   status: string;
   monthly_fee: number | null;
   contract_start_date: string | null;
+  contract_end_date: string | null;
 }
 
 interface InvoiceRow {
@@ -89,7 +90,7 @@ export default function Revenue() {
     queryFn: async () => {
       const { data, error } = await supabase
         .from('clients')
-        .select('id, name, status, monthly_fee, contract_start_date')
+        .select('id, name, status, monthly_fee, contract_start_date, contract_end_date')
         .order('name');
       if (error) throw error;
       return data as ClientRow[];
@@ -160,13 +161,18 @@ export default function Revenue() {
       // 아직 시작 전인 계약(이번 달보다 늦게 시작)은 제외
       const notStarted =
         c.contract_start_date != null && format(new Date(c.contract_start_date), 'yyyy-MM') > selectedMonth;
+      // 종료된 계약(이번 달보다 이전에 종료)은 제외
+      const alreadyEnded =
+        c.contract_end_date != null && format(new Date(c.contract_end_date), 'yyyy-MM') < selectedMonth;
       const rec = invoiceByClient.get(c.id);
       if (!hasFee && !rec) continue;
       if (notStarted && !rec) continue;
+      if (alreadyEnded && !rec) continue;
 
       const prorate = computeProration({
         monthlyFee: c.monthly_fee ?? 0,
         contractStartDate: c.contract_start_date,
+        contractEndDate: c.contract_end_date,
         billingMonth: selectedMonth,
       });
 
