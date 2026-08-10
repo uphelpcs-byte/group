@@ -615,9 +615,10 @@ export default function Payroll() {
     toast.success(`${member.name}님의 급여명세서가 다운로드되었습니다`);
   };
 
-  // 보정시간 드롭다운 옵션 (30분 단위)
+  // 보정시간 드롭다운 옵션 (30분 단위, 0시간 포함)
   const adjustedHoursOptions = [
     { value: 'auto', label: '자동' },
+    { value: '0', label: '0시간' },
     ...Array.from({ length: 24 }, (_, i) => {
       const hours = (i + 1) * 0.5;
       const label = Number.isInteger(hours) ? `${hours}시간` : `${Math.floor(hours)}시간 30분`;
