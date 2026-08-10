@@ -68,13 +68,14 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   }, [user, isManagerPlus]);
 
   const checkTodayAttendance = async () => {
-    const today = format(new Date(), 'yyyy-MM-dd');
+    // 야간/철야 근무를 위해 날짜 필터 없이 아직 퇴근하지 않은 가장 최근 기록을 찾음
     const { data } = await supabase
       .from('attendance_records')
       .select('id, clock_in, clock_out, meal_out, meal_in')
       .eq('user_id', user?.id)
-      .eq('work_date', today)
       .is('clock_out', null)
+      .order('clock_in', { ascending: false })
+      .limit(1)
       .maybeSingle();
     
     if (data) {
