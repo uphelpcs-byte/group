@@ -140,15 +140,20 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const handleMealOut = async () => {
     if (!currentAttendance) return;
     setIsLoading(true);
+    const iso = new Date().toISOString();
+    const prev = currentAttendance;
+    // 즉시 UI 반영 → 복귀 버튼으로 전환
+    setCurrentAttendance({ ...prev, meal_out: iso, meal_in: null });
     try {
       const { error } = await supabase
         .from('attendance_records')
-        .update({ meal_out: new Date().toISOString() })
-        .eq('id', currentAttendance.id);
+        .update({ meal_out: iso, meal_in: null, meal_duration: null })
+        .eq('id', prev.id);
       if (error) throw error;
       toast.success('식사 시작이 등록되었습니다');
-      checkTodayAttendance();
+      await checkTodayAttendance();
     } catch (error: any) {
+      setCurrentAttendance(prev);
       toast.error(error.message || '식사 등록 실패');
     } finally {
       setIsLoading(false);
@@ -158,18 +163,23 @@ export function AppSidebar({ onNavigate }: { onNavigate?: () => void } = {}) {
   const handleMealIn = async () => {
     if (!currentAttendance) return;
     setIsLoading(true);
+    const iso = new Date().toISOString();
+    const prev = currentAttendance;
+    const mealDuration = prev.meal_out
+      ? (new Date(iso).getTime() - new Date(prev.meal_out).getTime()) / (1000 * 60 * 60)
+      : null;
+    // 즉시 UI 반영 → 식사 버튼으로 전환
+    setCurrentAttendance({ ...prev, meal_in: iso });
     try {
-      const mealDuration = currentAttendance.meal_out
-        ? (new Date().getTime() - new Date(currentAttendance.meal_out).getTime()) / (1000 * 60 * 60)
-        : null;
       const { error } = await supabase
         .from('attendance_records')
-        .update({ meal_in: new Date().toISOString(), meal_duration: mealDuration })
-        .eq('id', currentAttendance.id);
+        .update({ meal_in: iso, meal_duration: mealDuration })
+        .eq('id', prev.id);
       if (error) throw error;
       toast.success('식사 복귀가 등록되었습니다');
-      checkTodayAttendance();
+      await checkTodayAttendance();
     } catch (error: any) {
+      setCurrentAttendance(prev);
       toast.error(error.message || '복귀 등록 실패');
     } finally {
       setIsLoading(false);
