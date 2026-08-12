@@ -31,6 +31,7 @@ interface AttendanceRecord {
   work_date: string;
   total_hours: number | null;
   adjusted_hours: number | null;
+  night_pay_applied: boolean | null;
 }
 
 interface PayrollSetting {
@@ -289,7 +290,9 @@ export default function Payroll() {
   };
 
   // 근무 기록 하나에서 야간 근무시간(식사시간 야간 부분 제외, 보정시간 비율로 스케일)
+  // 야간수당 적용 체크(night_pay_applied)가 켜진 기록만 실제 계산에 반영
   const nightHoursForRecord = (r: AttendanceRecord): number => {
+    if (!r.night_pay_applied) return 0;
     if (!r.clock_in || !r.clock_out) return 0;
     const effective = getEffectiveHours(r);
     if (effective <= 0) return 0;
@@ -301,6 +304,23 @@ export default function Payroll() {
     const scaled = rawNight * (effective / rawShift);
     return Math.max(0, Math.min(scaled, effective));
   };
+
+  // 야간수당 적용 토글 mutation
+  const toggleNightPayMutation = useMutation({
+    mutationFn: async ({ recordId, apply }: { recordId: string; apply: boolean }) => {
+      const { error } = await supabase
+        .from('attendance_records')
+        .update({ night_pay_applied: apply })
+        .eq('id', recordId);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-for-payroll'] });
+    },
+    onError: (error: any) => {
+      toast.error(error.message || '야간수당 설정 실패');
+    },
+  });
 
   // 급여 계산 (보정시간 + 교육기간 시급 반영)
   const memberPayrolls = useMemo<MemberPayroll[]>(() => {
@@ -993,6 +1013,7 @@ export default function Payroll() {
                         <TableHead>퇴근</TableHead>
                         <TableHead>실근무시간</TableHead>
                         <TableHead>보정시간</TableHead>
+                        <TableHead className="text-center">야간수당</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -1045,6 +1066,15 @@ export default function Payroll() {
                                 </SelectContent>
                               </Select>
                             </TableCell>
+                            <TableCell className="text-center">
+                              <Checkbox
+                                checked={record.night_pay_applied === true}
+                                onCheckedChange={(checked) =>
+                                  toggleNightPayMutation.mutate({ recordId: record.id, apply: checked === true })
+                                }
+                                aria-label="야간수당 적용"
+                              />
+                            </TableCell>
                           </TableRow>
                         );
                       })}
@@ -1053,6 +1083,9 @@ export default function Payroll() {
                 )}
                 <p className="text-xs text-muted-foreground mt-4">
                   * 보정시간을 선택하면 해당 일의 근무시간이 선택한 값으로 급여 계산에 반영됩니다. '자동'은 실제 출퇴근 기록 기반으로 계산합니다.
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  * 야간수당 체크 시 해당 일의 22:00~다음날 06:00 겹치는 시간이 시급의 1.5배로 계산됩니다. 체크하지 않으면 야간수당은 계산되지 않습니다.
                 </p>
               </CardContent>
             </Card>

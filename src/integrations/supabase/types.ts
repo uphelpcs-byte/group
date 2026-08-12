@@ -24,6 +24,7 @@ export type Database = {
           meal_duration: number | null
           meal_in: string | null
           meal_out: string | null
+          night_pay_applied: boolean | null
           notes: string | null
           total_hours: number | null
           updated_at: string
@@ -39,6 +40,7 @@ export type Database = {
           meal_duration?: number | null
           meal_in?: string | null
           meal_out?: string | null
+          night_pay_applied?: boolean | null
           notes?: string | null
           total_hours?: number | null
           updated_at?: string
@@ -54,6 +56,7 @@ export type Database = {
           meal_duration?: number | null
           meal_in?: string | null
           meal_out?: string | null
+          night_pay_applied?: boolean | null
           notes?: string | null
           total_hours?: number | null
           updated_at?: string
